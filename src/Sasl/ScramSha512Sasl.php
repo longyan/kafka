@@ -15,11 +15,20 @@ class ScramSha512Sasl implements SaslInterface
      */
     protected $config;
 
-    protected string $nonce = '';
+    /**
+     * @var string
+     */
+    protected $nonce = '';
 
-    protected string $saltedPassword = '';
+    /**
+     * @var string
+     */
+    protected $saltedPassword = '';
 
-    protected string $authMessage = '';
+    /**
+     * @var string
+     */
+    protected $authMessage = '';
 
     public function __construct(CommonConfig $config)
     {
