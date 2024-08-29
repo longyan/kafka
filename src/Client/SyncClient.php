@@ -23,7 +23,9 @@ use longlang\phpkafka\Protocol\SaslAuthenticate\SaslAuthenticateResponse;
 use longlang\phpkafka\Protocol\SaslHandshake\SaslHandshakeRequest;
 use longlang\phpkafka\Protocol\SaslHandshake\SaslHandshakeResponse;
 use longlang\phpkafka\Protocol\Type\Int32;
+use longlang\phpkafka\Sasl\PlainSasl;
 use longlang\phpkafka\Sasl\SaslInterface;
+use longlang\phpkafka\Sasl\ScramSha512Sasl;
 use longlang\phpkafka\Socket\SocketInterface;
 use longlang\phpkafka\Socket\StreamSocket;
 
@@ -207,6 +209,21 @@ class SyncClient implements ClientInterface
         if (!$class instanceof SaslInterface) {
             return;
         }
+
+        if ($class instanceof PlainSasl) {
+            /* \longlang\phpkafka\Sasl\PlainSasl $class */
+            $this->sendPlainAuthInfo($class);
+        } elseif ($class instanceof ScramSha512Sasl) {
+            /* \longlang\phpkafka\Sasl\ScramSha512Sasl $class */
+            $this->sendScramSha512AuthInfo($class);
+        } else {
+            return;
+        }
+    }
+
+    private function sendPlainAuthInfo(SaslInterface $class): void
+    {
+        /** @var \longlang\phpkafka\Sasl\PlainSasl $class */
         $handshakeRequest = new SaslHandshakeRequest();
         $handshakeRequest->setMechanism($class->getName());
         $correlationId = $this->send($handshakeRequest);
@@ -220,5 +237,38 @@ class SyncClient implements ClientInterface
         /** @var SaslAuthenticateResponse $authenticateResponse */
         $authenticateResponse = $this->recv($correlationId);
         ErrorCode::check($authenticateResponse->getErrorCode());
+    }
+
+    private function sendScramSha512AuthInfo(SaslInterface $class): void
+    {
+        /** @var \longlang\phpkafka\Sasl\ScramSha512Sasl $class */
+        // Send first verification message
+        $handshakeRequest = new SaslHandshakeRequest();
+        $handshakeRequest->setMechanism($class->getName());
+        $correlationId = $this->send($handshakeRequest);
+        /** @var SaslHandshakeResponse $handshakeResponse */
+        $handshakeResponse = $this->recv($correlationId);
+        ErrorCode::check($handshakeResponse->getErrorCode());
+
+        // First handshake
+        $authenticateRequest = new SaslAuthenticateRequest();
+        $authenticateRequest->setAuthBytes($class->getAuthBytes());
+        $correlationId = $this->send($authenticateRequest);
+        /** @var SaslAuthenticateResponse $authenticateResponse */
+        $authenticateResponse = $this->recv($correlationId);
+        ErrorCode::check($authenticateResponse->getErrorCode());
+
+        // Second handshake
+        $authenticateRequest = new SaslAuthenticateRequest();
+        $authenticateRequest->setAuthBytes($class->getFinalMessage($authenticateResponse->getAuthBytes()));
+        $correlationId = $this->send($authenticateRequest);
+        /** @var SaslAuthenticateResponse $authenticateResponse */
+        $authenticateResponse = $this->recv($correlationId);
+        ErrorCode::check($authenticateResponse->getErrorCode());
+
+        // Verify the second server response
+        if ($class->enableFinalSignatureVerification()) {
+            $class->verifyFinalMessage($authenticateResponse->getAuthBytes());
+        }
     }
 }

@@ -418,11 +418,21 @@ class Consumer
         }
     }
 
+    protected function getLastHeartbeatTime(): float
+    {
+        return $this->lastHeartbeatTime > 0 ? $this->lastHeartbeatTime : microtime(true);
+    }
+
+    protected function setLastHeartbeatTime(float $lastHeartbeatTime): void
+    {
+        $this->lastHeartbeatTime = $lastHeartbeatTime;
+    }
+
     protected function checkBeartbeat(): void
     {
         $time = microtime(true);
-        if ($time - $this->lastHeartbeatTime >= $this->config->getGroupHeartbeat()) {
-            $this->lastHeartbeatTime = $time;
+        if ($time - $this->getLastHeartbeatTime() >= $this->config->getGroupHeartbeat()) {
+            $this->setLastHeartbeatTime($time);
             $this->heartbeat();
         }
     }
