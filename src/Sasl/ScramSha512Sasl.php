@@ -1,6 +1,14 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
 namespace longlang\phpkafka\Sasl;
 
@@ -16,7 +24,9 @@ class ScramSha512Sasl implements SaslInterface
     protected $config;
 
     protected string $nonce = '';
+
     protected string $saltedPassword = '';
+
     protected string $authMessage = '';
 
     public function __construct(CommonConfig $config)
@@ -47,14 +57,6 @@ class ScramSha512Sasl implements SaslInterface
     }
 
     /**
-     * Get first handshake information of SCRAM-SHA-512.
-     */
-    private function getFirstMessageBare(): string
-    {
-        return sprintf('n=%s,r=%s', $this->getSaslConfig('username'), $this->nonce);
-    }
-
-    /**
      * Get all SASL configurations.
      */
     public function getSaslConfigs(): array
@@ -68,14 +70,6 @@ class ScramSha512Sasl implements SaslInterface
     public function getSaslConfig(string $key): mixed
     {
         return $this->getSaslConfigs()[$key] ?? null;
-    }
-
-    /**
-     * Get SASL password.
-     */
-    private function getPassword(): string
-    {
-        return $this->getSaslConfigs()['password'] ?? '';
     }
 
     /**
@@ -105,40 +99,6 @@ class ScramSha512Sasl implements SaslInterface
         $clientSignature = $this->hmac($authMessage, $storedKey);
 
         return sprintf('%s,p=%s', $clientFinalMessageWithoutProof, base64_encode($clientKey ^ $clientSignature));
-    }
-
-    /**
-     * Compute salted password using PBKDF2 function and the salt and iteration count provided by the server.
-     */
-    private function calculateSaltedPassword(string $password, string $salt, int $iterations): string
-    {
-        return hash_pbkdf2('sha512', $password, $salt, $iterations, 0, true);
-    }
-
-    /**
-     * Compute client key using salted password and HMAC function to calculate client key.
-     */
-    private function calculateClientKey(string $saltedPassword): string
-    {
-        // In SCRAM-SHA-512, a salted password is required to encrypt the calculation secret
-        // and the key is fixed to "Client Key"
-        return $this->hmac('Client Key', $saltedPassword);
-    }
-
-    /**
-     * Compute stored key using client key and SHA-256 function to calculate stored key.
-     */
-    private function calculateStoredKey(string $clientKey): string
-    {
-        return hash('sha512', $clientKey, true);
-    }
-
-    /**
-     * Get message without proof.
-     */
-    private function getMessageWithoutProof(string $nonce): string
-    {
-        return sprintf('c=biws,r=%s', $nonce);
     }
 
     /**
@@ -176,8 +136,58 @@ class ScramSha512Sasl implements SaslInterface
         $serverKey = $this->hmac('Server Key', $this->saltedPassword);
         $expectedSignature = $this->hmac($this->authMessage, $serverKey);
 
-        if (!hash_equals($receivedSignature, $expectedSignature)) {
+        if (! hash_equals($receivedSignature, $expectedSignature)) {
             ErrorCode::check(ErrorCode::SASL_AUTHENTICATION_FAILED);
         }
+    }
+
+    /**
+     * Get first handshake information of SCRAM-SHA-512.
+     */
+    private function getFirstMessageBare(): string
+    {
+        return sprintf('n=%s,r=%s', $this->getSaslConfig('username'), $this->nonce);
+    }
+
+    /**
+     * Get SASL password.
+     */
+    private function getPassword(): string
+    {
+        return $this->getSaslConfigs()['password'] ?? '';
+    }
+
+    /**
+     * Compute salted password using PBKDF2 function and the salt and iteration count provided by the server.
+     */
+    private function calculateSaltedPassword(string $password, string $salt, int $iterations): string
+    {
+        return hash_pbkdf2('sha512', $password, $salt, $iterations, 0, true);
+    }
+
+    /**
+     * Compute client key using salted password and HMAC function to calculate client key.
+     */
+    private function calculateClientKey(string $saltedPassword): string
+    {
+        // In SCRAM-SHA-512, a salted password is required to encrypt the calculation secret
+        // and the key is fixed to "Client Key"
+        return $this->hmac('Client Key', $saltedPassword);
+    }
+
+    /**
+     * Compute stored key using client key and SHA-256 function to calculate stored key.
+     */
+    private function calculateStoredKey(string $clientKey): string
+    {
+        return hash('sha512', $clientKey, true);
+    }
+
+    /**
+     * Get message without proof.
+     */
+    private function getMessageWithoutProof(string $nonce): string
+    {
+        return sprintf('c=biws,r=%s', $nonce);
     }
 }

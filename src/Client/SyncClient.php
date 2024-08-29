@@ -211,8 +211,10 @@ class SyncClient implements ClientInterface
         }
 
         if ($class instanceof PlainSasl) {
+            /** \longlang\phpkafka\Sasl\PlainSasl $class */
             $this->sendPlainAuthInfo($class);
         } elseif ($class instanceof ScramSha512Sasl) {
+            /** \longlang\phpkafka\Sasl\ScramSha512Sasl $class */
             $this->sendScramSha512AuthInfo($class);
         } else {
             return;
