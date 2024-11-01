@@ -64,6 +64,11 @@ class CommonConfig extends AbstractConfig
      */
     protected $ssl = null;
 
+    /**
+     * @var int
+     */
+    protected $maxTopicFetchRetry = -1;
+
     public function getConnectTimeout(): float
     {
         return $this->connectTimeout;
@@ -215,6 +220,18 @@ class CommonConfig extends AbstractConfig
         } else {
             throw new InvalidArgumentException(sprintf('The ssl must be array or SslConfig, and the current type is %s', \gettype($ssl)));
         }
+
+        return $this;
+    }
+
+    public function getMaxTopicFetchRetry(): int
+    {
+        return $this->maxTopicFetchRetry;
+    }
+
+    public function setMaxTopicFetchRetry(int $maxTopicFetchRetry): self
+    {
+        $this->maxTopicFetchRetry = $maxTopicFetchRetry;
 
         return $this;
     }

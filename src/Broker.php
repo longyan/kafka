@@ -101,7 +101,7 @@ class Broker
         $this->setBrokers($brokers);
     }
 
-    public function updateMetadata(array $topics = [], ?ClientInterface $client = null): MetadataResponse
+    public function updateMetadata(array $topics = [], ?ClientInterface $client = null, int $retry = 0): MetadataResponse
     {
         if (null === $client) {
             $client = $this->getClient();
@@ -144,8 +144,8 @@ class Broker
             $this->metaUpdatedTopics = $topics;
         }
 
-        if ($retryTopics) {
-            return $this->updateMetadata($retryTopics, $client);
+        if ($retryTopics && ($this->config->getMaxTopicFetchRetry() < 0 || $this->config->getMaxTopicFetchRetry() <= $retry)) {
+            return $this->updateMetadata($retryTopics, $client, $retry + 1);
         }
 
         return $response;
