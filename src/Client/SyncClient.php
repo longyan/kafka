@@ -18,10 +18,6 @@ use longlang\phpkafka\Protocol\ErrorCode;
 use longlang\phpkafka\Protocol\KafkaRequest;
 use longlang\phpkafka\Protocol\RequestHeader\RequestHeader;
 use longlang\phpkafka\Protocol\ResponseHeader\ResponseHeader;
-use longlang\phpkafka\Protocol\SaslAuthenticate\SaslAuthenticateRequest;
-use longlang\phpkafka\Protocol\SaslAuthenticate\SaslAuthenticateResponse;
-use longlang\phpkafka\Protocol\SaslHandshake\SaslHandshakeRequest;
-use longlang\phpkafka\Protocol\SaslHandshake\SaslHandshakeResponse;
 use longlang\phpkafka\Protocol\Type\Int32;
 use longlang\phpkafka\Sasl\SaslInterface;
 use longlang\phpkafka\Socket\SocketInterface;
@@ -203,22 +199,10 @@ class SyncClient implements ClientInterface
         if (!isset($config['type']) || empty($config['type'])) {
             return;
         }
-        $class = new $config['type']($this->getConfig());
+        $class = new $config['type']($this, $this->getConfig());
         if (!$class instanceof SaslInterface) {
             return;
         }
-        $handshakeRequest = new SaslHandshakeRequest();
-        $handshakeRequest->setMechanism($class->getName());
-        $correlationId = $this->send($handshakeRequest);
-        /** @var SaslHandshakeResponse $handshakeResponse */
-        $handshakeResponse = $this->recv($correlationId);
-        ErrorCode::check($handshakeResponse->getErrorCode());
-
-        $authenticateRequest = new SaslAuthenticateRequest();
-        $authenticateRequest->setAuthBytes($class->getAuthBytes());
-        $correlationId = $this->send($authenticateRequest);
-        /** @var SaslAuthenticateResponse $authenticateResponse */
-        $authenticateResponse = $this->recv($correlationId);
-        ErrorCode::check($authenticateResponse->getErrorCode());
+        $class->auth();
     }
 }
