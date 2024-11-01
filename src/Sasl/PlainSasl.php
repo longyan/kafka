@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace longlang\phpkafka\Sasl;
 
+use longlang\phpkafka\Client\ClientInterface;
 use longlang\phpkafka\Config\CommonConfig;
 use longlang\phpkafka\Exception\KafkaErrorException;
+use longlang\phpkafka\Protocol\ErrorCode;
+use longlang\phpkafka\Protocol\SaslAuthenticate\SaslAuthenticateRequest;
+use longlang\phpkafka\Protocol\SaslAuthenticate\SaslAuthenticateResponse;
+use longlang\phpkafka\Protocol\SaslHandshake\SaslHandshakeRequest;
+use longlang\phpkafka\Protocol\SaslHandshake\SaslHandshakeResponse;
 
 class PlainSasl implements SaslInterface
 {
@@ -14,15 +20,37 @@ class PlainSasl implements SaslInterface
      */
     protected $config;
 
-    public function __construct(CommonConfig $config)
+    /**
+     * @var ClientInterface
+     */
+    protected $client;
+
+    public function __construct(ClientInterface $client, CommonConfig $config)
     {
+        $this->client = $client;
         $this->config = $config;
+    }
+
+    public function auth(): void {
+        $handshakeRequest = new SaslHandshakeRequest();
+        $handshakeRequest->setMechanism($this->getName());
+        $correlationId = $this->client->send($handshakeRequest);
+        /** @var SaslHandshakeResponse $handshakeResponse */
+        $handshakeResponse = $this->client->recv($correlationId);
+        ErrorCode::check($handshakeResponse->getErrorCode());
+
+        $authenticateRequest = new SaslAuthenticateRequest();
+        $authenticateRequest->setAuthBytes($this->getAuthBytes());
+        $correlationId = $this->client->send($authenticateRequest);
+        /** @var SaslAuthenticateResponse $authenticateResponse */
+        $authenticateResponse = $this->client->recv($correlationId);
+        ErrorCode::check($authenticateResponse->getErrorCode());
     }
 
     /**
      * 授权模式.
      */
-    public function getName(): string
+    protected function getName(): string
     {
         return 'PLAIN';
     }
@@ -30,7 +58,7 @@ class PlainSasl implements SaslInterface
     /**
      * 获得加密串.
      */
-    public function getAuthBytes(): string
+    protected function getAuthBytes(): string
     {
         $config = $this->config->getSasl();
         if (empty($config['username']) || empty($config['password'])) {
