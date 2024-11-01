@@ -144,7 +144,7 @@ class Broker
             $this->metaUpdatedTopics = $topics;
         }
 
-        if ($retryTopics && ($this->config->getMaxTopicFetchRetry() < 0 || $this->config->getMaxTopicFetchRetry() <= $retry)) {
+        if ($retryTopics && ($this->config->getMaxTopicFetchRetry() < 0 || $this->config->getMaxTopicFetchRetry() > $retry)) {
             return $this->updateMetadata($retryTopics, $client, $retry + 1);
         }
 
